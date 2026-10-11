@@ -4,10 +4,7 @@ let id : ∀ l. (A : U l) -> A -> A =
 let smallId : (A : U 0) -> A -> A = 
   id {0} ;
 
-let largeId : (A : Big) -> A -> A = 
-  id {Big} ;
-
 let cumul : ∀ l. U 1 -> U l+1 = 
   Λ l. \X. X ;
 
-cumul {Big} (U 0)
+cumul {1} (U 0)

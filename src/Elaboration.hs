@@ -188,7 +188,12 @@ elabSize cxt = \case
           | otherwise = go (i + 1) tys
     go 0 (types cxt)
   RSz i -> pure (iterate Succ Zero !! i)
-  RSucc s -> Succ <$> elabSize cxt s
+  RSucc s -> do
+    s' <- elabSize cxt s
+    case s' of
+      Big -> pure Big
+      Omega -> pure Omega
+      _ -> pure (Succ s')
   RBig -> pure Big
   ROmega -> pure Omega
 
@@ -515,9 +520,11 @@ infer cxt = \case
       VLPi _ b -> do
         sz <- elabSize cxt s
         let vsz = evalSize (env cxt) sz
-        pure (LApp tTm sz, b vsz)
+        if not (isSmallSize vsz) then
+          report cxt ("Size issue: level application expects a small level, but got " ++ showSize cxt vsz)
+        else
+          pure (LApp tTm sz, b vsz)
       _ -> report cxt ("Expected a level-polymorphic type for level application, instead inferred:\n\n  " ++ showVTy cxt tTy)
-
   RFst t -> do
     (tTm, tTy) <- infer cxt t
     case tTy of

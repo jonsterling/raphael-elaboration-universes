@@ -165,9 +165,19 @@ evalSize env = \case
     VESize s -> s
     _ -> error "Evaluation error: Expected a level variable in environment"
   Zero -> VZero 
-  Succ s -> VSucc (evalSize env s)
+  Succ s -> case evalSize env s of
+    VBig -> VBig
+    VOmega -> VOmega
+    vs -> VSucc vs
   Big -> VBig
   Omega -> VOmega
+
+isSmallSize :: VSize -> Bool
+isSmallSize VZero = True
+isSmallSize (VSucc s) = isSmallSize s
+isSmallSize (VLVar _) = True
+isSmallSize VBig = False
+isSmallSize VOmega = False
 
 evalTm :: Env -> Tm -> VTm
 evalTm env = \case
