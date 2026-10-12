@@ -191,8 +191,8 @@ elabSize cxt = \case
   RSucc s -> do
     s' <- elabSize cxt s
     case s' of
-      Big -> pure Big
-      Omega -> pure Omega
+      Big -> error "Successor operation is only available at small levels"
+      Omega -> error "Successor operation is only available at small levels"
       _ -> pure (Succ s')
   RBig -> pure Big
   ROmega -> pure Omega
