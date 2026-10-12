@@ -15,7 +15,7 @@ import Printing
 
 type Types = [(Name, VTy)]
 
-data Cxt = Cxt {env :: Env, types :: Types, lvl :: Lvl, pos :: SourcePos}
+data Cxt = Cxt {env :: Env, types :: Types, lvl :: DeBruijnLvl, pos :: SourcePos}
 
 emptyCxt :: SourcePos -> Cxt
 emptyCxt = Cxt [] [] 0
@@ -129,7 +129,7 @@ isTupleSmall cxt i = \case
   VOne -> pure ()
   _ -> pure ()
 
-coe :: Cxt -> Lvl -> VTy -> VTy -> Tm -> M Tm
+coe :: Cxt -> DeBruijnLvl -> VTy -> VTy -> Tm -> M Tm
 coe cxt l sourceTy targetTy m =
   if convTy l sourceTy targetTy then
     pure m
@@ -422,11 +422,11 @@ elabConstrs dName params c (((cName, cTyRaw), cTag) : rest) = do
 --------------------------------------------------------
 
 -- Elaborates the eliminator type
-elabElimTy :: VSize -> Name -> [(Name, Raw)] -> [Ty] -> Lvl -> VTm -> VTm -> VTm -> Ty
-elabElimTy uLevel dName params pTyTms (Lvl l_p) vTuple vTagTm vTermD =
+elabElimTy :: VSize -> Name -> [(Name, Raw)] -> [Ty] -> DeBruijnLvl -> VTm -> VTm -> VTm -> Ty
+elabElimTy uLevel dName params pTyTms (DeBruijnLvl l_p) vTuple vTagTm vTermD =
   let n = length params
 
-      vParams = [VVar (Lvl i) | i <- [l_p - n .. l_p - 1]]
+      vParams = [VVar (DeBruijnLvl i) | i <- [l_p - n .. l_p - 1]]
       vDatatypeCode = foldl vApp vTermD vParams
 
       vDatatype = VDecode uLevel vDatatypeCode
@@ -452,12 +452,12 @@ elabElimTy uLevel dName params pTyTms (Lvl l_p) vTuple vTagTm vTermD =
                VPi "x" vDatatype $ \vX ->
                  VDecode uLevel (vApp vP vX)
 
-      elimTyBodyTm = quoteTy (Lvl l_p) vElimTyBody
+      elimTyBodyTm = quoteTy (DeBruijnLvl l_p) vElimTyBody
 
   in foldr (\((pName, _), pTyTm) acc -> Pi pName pTyTm acc) elimTyBodyTm (zip params pTyTms)
 
 -- Elaborates the eliminator term
-elabElimTm params (Lvl l_p) vDescSum =
+elabElimTm params (DeBruijnLvl l_p) vDescSum =
   let
       vElimTmBody =
         VLam "P" $ \vP ->
@@ -467,7 +467,7 @@ elabElimTm params (Lvl l_p) vDescSum =
                       VLam "ihs" $ \vIhs ->
                       vApp (vApp (VSwitch vM (VFst vY)) (VSnd vY)) vIhs
           in VElim vDescSum vP vM_tm vX
-      elimTmBodyTm = quoteTm (Lvl l_p) vElimTmBody
+      elimTmBodyTm = quoteTm (DeBruijnLvl l_p) vElimTmBody
 
   in foldr (\(pName, _) acc -> Lam pName acc) elimTmBodyTm params
 

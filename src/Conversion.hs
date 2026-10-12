@@ -5,7 +5,7 @@ import Prelude hiding (lookup)
 import Syntax
 import Evaluation
 
-convTm :: Lvl -> VTm -> VTm -> Bool
+convTm :: DeBruijnLvl -> VTm -> VTm -> Bool
 convTm l t u =
   let strip (VConLabel _ tm) = strip tm
       strip tm = tm
@@ -44,7 +44,7 @@ convTm l t u =
 
   _ -> False
 
-convTy :: Lvl -> VTy -> VTy -> Bool
+convTy :: DeBruijnLvl -> VTy -> VTy -> Bool
 convTy l t u =
   let strip (VDLabel _ ty) = strip ty
       strip ty = ty
@@ -71,7 +71,7 @@ convTy l t u =
 
   _ -> False
 
-convDesc :: Lvl -> VDesc -> VDesc -> Bool
+convDesc :: DeBruijnLvl -> VDesc -> VDesc -> Bool
 convDesc l d d' = case (d, d') of
   (VDescUnit, VDescUnit) -> True
   (VDescVar, VDescVar) -> True

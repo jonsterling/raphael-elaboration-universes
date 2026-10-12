@@ -11,7 +11,7 @@ data VEnvVal = VETm VTm | VESize VSize
 type Env = [VEnvVal]
 data VLabel = VData Name [VTm]
 
-data VSize = VLVar Lvl | VZero | VSucc VSize | VBig | VOmega 
+data VSize = VLVar DeBruijnLvl | VZero | VSucc VSize | VBig | VOmega 
 
 instance Eq VSize where
   VZero == VZero = True
@@ -67,7 +67,7 @@ data VTy
   | VSmallPiE VTm VTm
     
 data VTm
-  = VVar Lvl
+  = VVar DeBruijnLvl
   | VApp VTm ~VTm
   | VCode VSize VTy
   | VLam Name (VTm -> VTm)
@@ -166,8 +166,8 @@ evalSize env = \case
     _ -> error "Evaluation error: Expected a level variable in environment"
   Zero -> VZero 
   Succ s -> case evalSize env s of
-    VBig -> VBig
-    VOmega -> VOmega
+    VBig -> error "Evaluation error: Successor operation is only available at small levels"
+    VOmega -> error "Evaluation error: Successor operation is only available at small levels"
     vs -> VSucc vs
   Big -> VBig
   Omega -> VOmega
@@ -296,17 +296,17 @@ evalDesc env = \case
     VDReturn d -> d
     k -> VDescCall (VData n (map (evalTm env) ts)) k
 
-lvl2Ix :: Lvl -> Lvl -> Ix
-lvl2Ix (Lvl l) (Lvl x) = Ix (l - x - 1)
+lvl2Ix :: DeBruijnLvl -> DeBruijnLvl -> Ix
+lvl2Ix (DeBruijnLvl l) (DeBruijnLvl x) = Ix (l - x - 1)
 
-quoteSize :: Lvl -> VSize -> Size
+quoteSize :: DeBruijnLvl -> VSize -> Size
 quoteSize l = \case
   VLVar x -> LVar (lvl2Ix l x)
   VZero -> Zero
   VSucc s -> Succ (quoteSize l s)
   VBig -> Big
   VOmega -> Omega
-quoteTm :: Lvl -> VTm -> Tm
+quoteTm :: DeBruijnLvl -> VTm -> Tm
 quoteTm l = \case
   VVar x -> Var (lvl2Ix l x)
   VApp t u -> App (quoteTm l t) (quoteTm l u)
@@ -338,7 +338,7 @@ quoteTm l = \case
   VSuccE t -> SuccE (quoteTm l t)
   VSwitch t u -> Switch (quoteTm l t) (quoteTm l u)
 
-quoteTy :: Lvl -> VTy -> Ty
+quoteTy :: DeBruijnLvl -> VTy -> Ty
 quoteTy l = \case
   VPi  x a b  -> Pi x (quoteTy l a) (quoteTy (l + 1) (b (VVar l)))
   VU s -> U (quoteSize l s)
@@ -361,7 +361,7 @@ quoteTy l = \case
   VEnumT t -> EnumT (quoteTm l t)
   VSmallPiE t u -> SmallPiE (quoteTm l t) (quoteTm l u)
 
-quoteDesc :: Lvl -> VDesc -> Desc
+quoteDesc :: DeBruijnLvl -> VDesc -> Desc
 quoteDesc l = \case
   VDescUnit -> DescUnit
   VDescVar -> DescVar
@@ -371,4 +371,4 @@ quoteDesc l = \case
   VDescCall (VData n ts) t -> DescCall (Data n (map (quoteTm l) ts)) (quoteTm l t)
 
 nf :: Env -> Tm -> Tm
-nf env t = quoteTm (Lvl (length env)) (evalTm env t)
+nf env t = quoteTm (DeBruijnLvl (length env)) (evalTm env t)

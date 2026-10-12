@@ -53,7 +53,7 @@ ex0 = main' "nf" $ unlines [
 newtype Ix  = Ix  Int deriving (Eq, Show, Num) via Int
 
 -- De Bruijn level.
-newtype Lvl = Lvl Int deriving (Eq, Show, Num) via Int
+newtype DeBruijnLvl = DeBruijnLvl Int deriving (Eq, Show, Num) via Int
 
 type Name = String
 
@@ -118,7 +118,7 @@ data Tm
 -- values
 ------------------------------------------------------------
 
-data VSize = VLVar Lvl | VZero | VSucc VSize
+data VSize = VLVar DeBruijnLvl | VZero | VSucc VSize
 
 instance Eq VSize where
   VZero == VZero = True
@@ -154,7 +154,7 @@ data VTp
     | VLPi Name (VSize -> VTp)
 
 data VTm
-  = VVar Lvl
+  = VVar DeBruijnLvl
   | VApp VTm ~VTm
   | VCode VSize VTp
   | VLam Name (VTm -> VTm)
@@ -201,16 +201,16 @@ evalTp env = \case
     v -> VDecode (evalSize env i) v
 
 
-lvl2Ix :: Lvl -> Lvl -> Ix
-lvl2Ix (Lvl l) (Lvl x) = Ix (l - x - 1)
+lvl2Ix :: DeBruijnLvl -> DeBruijnLvl -> Ix
+lvl2Ix (DeBruijnLvl l) (DeBruijnLvl x) = Ix (l - x - 1)
 
-quoteSize :: Lvl -> VSize -> Size
+quoteSize :: DeBruijnLvl -> VSize -> Size
 quoteSize l = \case
   VLVar x -> LVar (lvl2Ix l x)
   VZero -> Zero
   VSucc s -> Succ (quoteSize l s)
 
-quoteTm :: Lvl -> VTm -> Tm
+quoteTm :: DeBruijnLvl -> VTm -> Tm
 quoteTm l = \case
   VVar x -> Var (lvl2Ix l x)
   VApp t u -> App (quoteTm l t) (quoteTm l u)
@@ -221,7 +221,7 @@ quoteTm l = \case
   -- Coding
   VCode i a -> Code (quoteSize l i) (quoteTp l a)
 
-quoteTp :: Lvl -> VTp -> Tp
+quoteTp :: DeBruijnLvl -> VTp -> Tp
 quoteTp l = \case
   VPi  x a b -> Pi x (quoteTp l a) (quoteTp (l + 1) (b (VVar l)))
   VU i -> U (quoteSize l i)
@@ -231,9 +231,9 @@ quoteTp l = \case
   VDecode i t -> Decode (quoteSize l i) (quoteTm l t)
 
 nf :: Env -> Tm -> Tm
-nf env t = quoteTm (Lvl (length env)) (evalTm env t)
+nf env t = quoteTm (DeBruijnLvl (length env)) (evalTm env t)
 
-convTm :: Lvl -> VTm -> VTm -> Bool
+convTm :: DeBruijnLvl -> VTm -> VTm -> Bool
 convTm l t u = case (t, u) of
   (VLam _ t, VLam _ t') ->
     convTm (l + 1) (t (VVar l)) (t' (VVar l))
@@ -253,7 +253,7 @@ convTm l t u = case (t, u) of
 
   _ -> False
 
-convTp :: Lvl -> VTp -> VTp -> Bool
+convTp :: DeBruijnLvl -> VTp -> VTp -> Bool
 convTp l t u = case (t, u) of
   (VU i, VU i') -> i == i'
 
@@ -275,7 +275,7 @@ convTp l t u = case (t, u) of
 type Tppes = [(Name, VTp)]
 
 -- Elaboration context
-data Cxt = Cxt {env :: Env, types :: Tppes, lvl :: Lvl, pos :: SourcePos}
+data Cxt = Cxt {env :: Env, types :: Tppes, lvl :: DeBruijnLvl, pos :: SourcePos}
 
 emptyCxt :: SourcePos -> Cxt
 emptyCxt = Cxt [] [] 0
@@ -333,7 +333,7 @@ vApp :: VTm -> VTm -> VTm
 vApp (VLam _ f) v = f v
 vApp f          v = VApp f v
 
-coe :: Cxt -> Lvl -> VTp -> VTp -> Tm -> M Tm
+coe :: Cxt -> DeBruijnLvl -> VTp -> VTp -> Tm -> M Tm
 coe cxt l sourceTp targetTp m = case (sourceTp, targetTp) of
   (VU i, VU j) | i <= j -> 
     pure $ Code (quoteSize (lvl cxt) j) (Decode (quoteSize (lvl cxt) i) m)

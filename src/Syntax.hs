@@ -9,7 +9,7 @@ import Text.Megaparsec
 newtype Ix  = Ix  Int deriving (Eq, Show, Num) via Int
 
 -- De Bruijn level.
-newtype Lvl = Lvl Int deriving (Eq, Show, Num) via Int
+newtype DeBruijnLvl = DeBruijnLvl Int deriving (Eq, Show, Num) via Int
 
 data RawSize = RSzVar Name | RSz Int | RSucc RawSize | RBig | ROmega deriving Show
 data Size = LVar Ix | Zero | Succ Size | Big | Omega 
