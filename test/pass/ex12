@@ -1,7 +1,10 @@
-let Shadow : ∀ l. ∀ l. U l + 1 = 
-  Λ l. Λ l. U l ;
+let id : ∀ l. (A : U l) -> A -> A = 
+  Λ l. \A x. x ;
 
-let testShadow : U 6 = 
-  Shadow {0} {5} ;
+let smallId : (A : U 0) -> A -> A = 
+  id {0} ;
 
-testShadow
+let cumul : ∀ l. U 1 -> U l+1 = 
+  Λ l. \X. X ;
+
+cumul {1} (U 0)

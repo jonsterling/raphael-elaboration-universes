@@ -191,23 +191,23 @@ elabSize cxt = \case
   RSucc s -> do
     s' <- elabSize cxt s
     case s' of
-      Big -> error "Successor operation is only available at small levels"
-      Omega -> error "Successor operation is only available at small levels"
+      Big -> report cxt "Successor operation is only available at small levels"
       _ -> pure (Succ s')
   RBig -> pure Big
-  ROmega -> pure Omega
 
-checkTy :: Cxt -> Raw -> VSize -> M Ty
+checkTy :: Cxt -> Raw -> Maybe VSize -> M Ty
 checkTy cxt t size = case t of
   RSrcPos pos t -> checkTy (cxt {pos = pos}) t size
 
   RU s -> do 
     s' <- elabSize cxt s
-    let vs' = evalSize (env cxt) s'
-    
-    if vs' < size || size == VOmega then 
-      pure $ U s'
-    else report cxt ("Size issue: U " ++ showSize cxt vs' ++ " is too large to fit in U " ++ showSize cxt size)
+    case size of
+      Nothing -> pure $ U s'
+      Just sz -> do
+        let vs' = evalSize (env cxt) s'
+        if vs' < sz then 
+          pure $ U s'
+        else report cxt ("Size issue: U " ++ showSize cxt vs' ++ " is too large to fit in U " ++ showSize cxt sz)
 
   RRecord [] -> pure Unit
   RRecord ((x, a):xs) -> do
@@ -229,13 +229,16 @@ checkTy cxt t size = case t of
 
   _ -> do
     (tTm, s) <- inferU cxt t
-    let vs = evalSize (env cxt) s
-    if vs <= size then
-      pure (Decode s tTm)
-    else do
-      let ty = Decode s tTm
-      isSmall cxt size (evalTy (env cxt) ty)
-      pure ty
+    case size of
+      Nothing -> pure (Decode s tTm)
+      Just sz -> do
+        let vs = evalSize (env cxt) s
+        if vs <= sz then
+          pure (Decode s tTm)
+        else do
+          let ty = Decode s tTm
+          isSmall cxt sz (evalTy (env cxt) ty)
+          pure ty
 
 check :: Cxt -> Raw -> VTy -> M Tm
 check cxt t a = case (t, a) of
@@ -259,7 +262,7 @@ check cxt t a = case (t, a) of
     pure $ LAbs l t'
 
   (_, VU s) -> do
-    u <- checkTy cxt t s
+    u <- checkTy cxt t (Just s)
     pure $ Code (quoteSize (lvl cxt) s) u
 
   (ROne, VUnit) -> pure One
@@ -285,7 +288,7 @@ check cxt t a = case (t, a) of
       pure (Pair u1 u2)
 
   (RLet x aTm tTm uTm, a') -> do
-    aTm' <- checkTy cxt aTm VOmega
+    aTm' <- checkTy cxt aTm Nothing
     let va = evalTy (env cxt) aTm'
     tTm' <- check cxt tTm va
     let vt = evalTm (env cxt) tTm'
@@ -303,7 +306,7 @@ check cxt t a = case (t, a) of
 elabDataTy :: Cxt -> [(Name, Raw)] -> Raw -> M (Ty, VTy, Size)
 elabDataTy cxt params ty = do
   let tyParams_raw = foldr (\(p, pTy) acc -> RPi p pTy acc) ty params
-  tyParams <- checkTy cxt tyParams_raw VOmega
+  tyParams <- checkTy cxt tyParams_raw Nothing
   let vTyParams = evalTy (env cxt) tyParams
 
   let getSize (U s) = s
@@ -317,7 +320,7 @@ elabDataTy cxt params ty = do
 buildParamCxt :: Cxt -> [(Name, Raw)] -> M (Cxt, [Ty])
 buildParamCxt c [] = pure (c, [])
 buildParamCxt c ((p, pTy):ps) = do
-  pTyTm <- checkTy c pTy VOmega
+  pTyTm <- checkTy c pTy Nothing
   let vpTy = evalTy (env c) pTyTm
   (c', pTyTms) <- buildParamCxt (bind p vpTy c) ps
   pure (c', pTyTm : pTyTms)
@@ -337,10 +340,10 @@ checkInfRec uLevel dName c = \case
   RSrcPos pos t -> checkInfRec uLevel dName (c {pos = pos}) t
   RPi z dom cod -> do
     if isRec dName cod then do
-      domTy <- checkTy c dom uLevel
+      domTy <- checkTy c dom (Just uLevel)
       pure $ Just (DescProd z domTy DescVar)
     else do
-      domTy <- checkTy c dom uLevel
+      domTy <- checkTy c dom (Just uLevel)
       let vDom = evalTy (env c) domTy
       res <- checkInfRec uLevel dName (bind z vDom c) cod
       case res of
@@ -363,7 +366,7 @@ elabConstrDesc uLevel dName c = \case
           rest <- elabConstrDesc uLevel dName c b
           pure $ DescTensor d_a rest
         Nothing -> do
-          aTy <- checkTy c a uLevel
+          aTy <- checkTy c a (Just uLevel)
           let va = evalTy (env c) aTy
           rest <- elabConstrDesc uLevel dName (bind y va c) b
           pure $ DescSum y aTy rest
@@ -407,7 +410,7 @@ elabConstrs dName params c [] = pure (c, id, [])
 elabConstrs dName params c (((cName, cTyRaw), cTag) : rest) = do
   let fullTyRaw = foldr (\(p, pTy) acc -> RPi p pTy acc) cTyRaw params
 
-  cTyTm <- checkTy c fullTyRaw VOmega
+  cTyTm <- checkTy c fullTyRaw Nothing
   let term = elabConstrTm dName cName params cTyRaw cTag
 
   let vcTy = evalTy (env c) cTyTm
@@ -499,8 +502,8 @@ infer cxt = \case
     elabProj cxt tTy tTm x
 
   RRecord fields -> do
-    ty <- checkTy cxt (RRecord fields) VOmega
-    pure (Code Omega ty, VU VOmega)
+    ty <- checkTy cxt (RRecord fields) Nothing
+    pure (Code Big ty, VU VBig)
 
   RRecordVal [] -> pure (One, VUnit)
   RRecordVal _  -> report cxt "Cannot infer type of non-empty record value"
@@ -525,6 +528,7 @@ infer cxt = \case
         else
           pure (LApp tTm sz, b vsz)
       _ -> report cxt ("Expected a level-polymorphic type for level application, instead inferred:\n\n  " ++ showVTy cxt tTy)
+      
   RFst t -> do
     (tTm, tTy) <- infer cxt t
     case tTy of
@@ -540,7 +544,7 @@ infer cxt = \case
       _ -> report cxt "Expected a pair for snd"
 
   RLet x aTm tTm uTm -> do
-    aTm' <- checkTy cxt aTm VOmega
+    aTm' <- checkTy cxt aTm Nothing
     let ~va = evalTy (env cxt) aTm'
     tTm' <- check cxt tTm va
     let ~vt = evalTm (env cxt) tTm'

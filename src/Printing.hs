@@ -31,7 +31,6 @@ prettySize ns = \case
   Zero -> ("0" ++)
   Succ s -> prettySize ns s . (" + 1"++)
   Big -> ("Big"++)
-  Omega -> ("Omega"++)
 
 prettyTm :: Int -> [Name] -> Tm -> ShowS
 prettyTm = goTm where

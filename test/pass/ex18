@@ -1,18 +1,12 @@
-let ListInterface : ∀ l. U l + 1 = Λ l. {
-  List : U l -> U l,
-  nil : (A : U l) -> List A,
-  cons : (A : U l) -> A -> List A -> List A
+data Nat : Big where {
+  zero : Nat ;
+  succ : Nat -> Nat
 } ;
 
-data List (A : Big) : Big where {
-  nil : List A ;
-  cons : A -> List A -> List A
-} ;
-  
-let ListModule : ∀ l. ListInterface {l} = Λ l. 
-  { List = (\X. List (X)), nil = nil, cons = cons } ;
+let Apply : ∀ l. ∀ k. (A : U l) -> (B : U k) -> (A -> B) -> A -> B = 
+  Λ l. Λ k. \A B f x. f x ;
 
-let TypeDocs : ∀ l. (ListModule {l + 2}).List (U l+1) = Λ l.
-  (ListModule {l + 2}).cons (U l+1) (U l) ((ListModule {l + 2}).nil (U l+1)) ;
+let testApply : U 1 = 
+  Apply {1} {2} (U 0) (U 1) (\X. U 0) Nat ;
 
-TypeDocs
+testApply

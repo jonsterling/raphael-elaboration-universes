@@ -1,10 +1,18 @@
-let id : ∀ l. (A : U l) -> A -> A = 
-  Λ l. \A x. x ;
+let Category : ∀ l. U l + 1 = Λ l. {
+  Obj : U l,
+  Hom : Obj -> Obj -> U l,
+  id : (x : Obj) -> Hom x x,
+  comp : (x y z : Obj) -> Hom y z -> Hom x y -> Hom x z
+} ;
 
-let smallId : (A : U 0) -> A -> A = 
-  id {0} ;
+let TypeCat : ∀ l. Category {l + 1} = Λ l. {
+  Obj = U l,
+  Hom = \A B. A -> B,
+  id = \A x. x,
+  comp = \A B C f g x. f (g x)
+} ;
 
-let cumul : ∀ l. U 1 -> U l+1 = 
-  Λ l. \X. X ;
+let id0 : (A : U 0) -> A -> A =
+  (TypeCat {0}).id ;
 
-cumul {1} (U 0)
+id0

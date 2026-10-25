@@ -33,7 +33,7 @@ pArrow   = symbol "→" <|> symbol "->"
 decimal  = lexeme L.decimal
 
 keyword :: String -> Bool
-keyword x = x `elem` ["let", "λ", "U", "Big", "Type", "data", "where", "fst", "snd", "Omega"]
+keyword x = x `elem` ["let", "λ", "U", "Big", "data", "where", "fst", "snd"]
 
 pIdent :: Parser Name
 pIdent = try $ do
@@ -52,7 +52,6 @@ pAtomBase =
             (RVar <$> pIdent)
         <|> (RU <$> (pKeyword "U" *> pRawSize))
         <|> (RU RBig <$ pKeyword "Big")
-        <|> (RU ROmega <$ pKeyword "Type")
         <|> (ROne <$ symbol "*")
         <|> (RFst <$> (pKeyword "fst" *> pAtom))
         <|> (RSnd <$> (pKeyword "snd" *> pAtom))
@@ -140,8 +139,7 @@ pPi = do
   pure $ foldr (\(xs, a) t -> foldr (\x -> RPi x a) t xs) cod dom
 
 pRawSizeAtom = 
-      (ROmega <$ pKeyword "Omega")
-  <|> (RBig <$ pKeyword "Big")
+      (RBig <$ pKeyword "Big")
   <|> (RSz <$> decimal)
   <|> (RSzVar <$> pIdent)
   <|> parens pRawSize

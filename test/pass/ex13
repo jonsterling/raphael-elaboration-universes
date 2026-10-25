@@ -1,60 +1,24 @@
-let Category : Type = {
-  Obj : Big,
-  Hom : Obj -> Obj -> Big,
-  id : (x : Obj) -> Hom x x,
-  comp : (x : Obj) -> (y : Obj) -> (z : Obj) -> Hom y z -> Hom x y -> Hom x z
+data Nat : Big where {
+  zero : Nat ;
+  succ : Nat -> Nat
 } ;
 
-let Functor : (C : Category) -> (D : Category) -> Type = \C D. {
-  FObj : C.Obj -> D.Obj,
-  FHom : (x : C.Obj) -> (y : C.Obj) -> C.Hom x y -> D.Hom (FObj x) (FObj y)
+let Monoid : ∀ l. U l -> U l = Λ l. \A. {
+  mnull : A,
+  mprod : A -> A -> A
 } ;
 
-let NatTrans : (C : Category) -> (D : Category) -> (F : Functor C D) -> (G : Functor C D) -> Type = \C D F G. {
-  cmp : (x : C.Obj) -> D.Hom (F.FObj x) (G.FObj x)
+
+let add : Nat -> Nat -> Nat = \a b.
+  elimNat (\_. Nat)
+    < \p ih. b ,
+    < \p ih. succ (fst ih) ,
+    * > >
+    a ;
+
+let NatMonoid : Monoid {0} Nat = {
+  mnull = zero,
+  mprod = \x y. add x y
 } ;
 
-let IdNatTrans : (C : Category) -> (D : Category) -> (F : Functor C D) -> NatTrans C D F F = \C D F. {
-  cmp = \x. D.id (F.FObj x)
-} ;
-
-let CompNatTrans : 
-    (C : Category) -> (D : Category) -> (F : Functor C D) -> (G : Functor C D) -> (H : Functor C D) ->
-        NatTrans C D G H -> NatTrans C D F G -> NatTrans C D F H = \C D F G H Beta Alpha.
-{
-  cmp = \x. D.comp (F.FObj x) (G.FObj x) (H.FObj x) (Beta.cmp x) (Alpha.cmp x)
-} ;
-
-let FunctorCat : (C : Category) -> (D : Category) -> Category = \C D. {
-  Obj = Functor C D,
-  Hom = \F G. NatTrans C D F G,
-  id = \F. IdNatTrans C D F,
-  comp = \F G H Beta Alpha. CompNatTrans C D F G H Beta Alpha
-} ;
-
-let IdFunctor : (C : Category) -> Functor C C = \C. {
-  FObj = \x. x,
-  FHom = \x y f. f
-} ;
-
-let CompFunctor : (C : Category) -> (D : Category) -> (E : Category) -> 
-                  Functor D E -> Functor C D -> Functor C E = \C D E F G. {
-  FObj = \x. F.FObj (G.FObj x),
-  FHom = \x y f. F.FHom (G.FObj x) (G.FObj y) (G.FHom x y f)
-} ;
-
-let TypeCat : Category  = {
-  Obj = U 0,
-  Hom = \A B. A -> B,
-  id = \A x. x,
-  comp = \A B K g f x. g (f x)
-} ;
-
-let Op : (C : Category) -> Category = \C. {
-  Obj = C.Obj,
-  Hom = \x y. C.Hom y x,
-  id = \x. C.id x,
-  comp = \x y z f g. C.comp z y x g f
-} ;
-
-TypeCat
+NatMonoid

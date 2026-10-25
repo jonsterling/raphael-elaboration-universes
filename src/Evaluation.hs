@@ -11,19 +11,16 @@ data VEnvVal = VETm VTm | VESize VSize
 type Env = [VEnvVal]
 data VLabel = VData Name [VTm]
 
-data VSize = VLVar DeBruijnLvl | VZero | VSucc VSize | VBig | VOmega 
+data VSize = VLVar DeBruijnLvl | VZero | VSucc VSize | VBig 
 
 instance Eq VSize where
   VZero == VZero = True
   VBig == VBig = True
-  VOmega == VOmega = True
   VLVar x == VLVar y = x == y
   VSucc s1 == VSucc s2 = s1 == s2
   _ == _ = False
 
 instance Ord VSize where
-  _ <= VOmega = True
-  VOmega <= _ = False
   _ <= VBig = True
   VBig <= _ = False
   VZero <= _ = True
@@ -32,8 +29,6 @@ instance Ord VSize where
   VLVar x <= VSucc s2 = VLVar x <= s2
   _ <= _ = False
   
-  VOmega < _ = False
-  _ < VOmega = True
   VBig < _ = False
   _ < VBig = True
   VZero < VSucc _ = True
@@ -46,7 +41,6 @@ instance Show VSize where
   show VZero = "0"
   show (VSucc s) = show s ++ " + 1"
   show VBig    = "Big"
-  show VOmega  = "Omega"
 
 data VTy
   = VPi Name ~VTy (VTm -> VTy)
@@ -167,17 +161,14 @@ evalSize env = \case
   Zero -> VZero 
   Succ s -> case evalSize env s of
     VBig -> error "Evaluation error: Successor operation is only available at small levels"
-    VOmega -> error "Evaluation error: Successor operation is only available at small levels"
     vs -> VSucc vs
   Big -> VBig
-  Omega -> VOmega
 
 isSmallSize :: VSize -> Bool
 isSmallSize VZero = True
 isSmallSize (VSucc s) = isSmallSize s
 isSmallSize (VLVar _) = True
 isSmallSize VBig = False
-isSmallSize VOmega = False
 
 evalTm :: Env -> Tm -> VTm
 evalTm env = \case
@@ -305,7 +296,7 @@ quoteSize l = \case
   VZero -> Zero
   VSucc s -> Succ (quoteSize l s)
   VBig -> Big
-  VOmega -> Omega
+
 quoteTm :: DeBruijnLvl -> VTm -> Tm
 quoteTm l = \case
   VVar x -> Var (lvl2Ix l x)

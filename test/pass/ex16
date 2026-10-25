@@ -1,18 +1,18 @@
-let Category : ∀ l. U l + 1 = Λ l. {
-  Obj : U l,
-  Hom : Obj -> Obj -> U l,
-  id : (x : Obj) -> Hom x x,
-  comp : (x y z : Obj) -> Hom y z -> Hom x y -> Hom x z
+let ListInterface : ∀ l. U l + 1 = Λ l. {
+  List : U l -> U l,
+  nil : (A : U l) -> List A,
+  cons : (A : U l) -> A -> List A -> List A
 } ;
 
-let TypeCat : ∀ l. Category {l + 1} = Λ l. {
-  Obj = U l,
-  Hom = \A B. A -> B,
-  id = \A x. x,
-  comp = \A B C f g x. f (g x)
+data List (A : Big) : Big where {
+  nil : List A ;
+  cons : A -> List A -> List A
 } ;
+  
+let ListModule : ∀ l. ListInterface {l} = Λ l. 
+  { List = (\X. List (X)), nil = nil, cons = cons } ;
 
-let id0 : (A : U 0) -> A -> A =
-  (TypeCat {0}).id ;
+let TypeDocs : ∀ l. (ListModule {l + 2}).List (U l+1) = Λ l.
+  (ListModule {l + 2}).cons (U l+1) (U l) ((ListModule {l + 2}).nil (U l+1)) ;
 
-id0
+TypeDocs
