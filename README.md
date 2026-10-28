@@ -1,8 +1,7 @@
 ## File architecture
 
 The file `Mimimal-Implementation.hs` contains the implementation of the elaboration algorithm described in section 7.
-This is a minimal type theory, with no fancy features to emphasize the simplicity of the approach. This is building upon the minimal and optimised
-implementations of Kovács, and especially of his [elaboration zoo](https://github.com/AndrasKovacs/elaboration-zoo).
+This is a minimal type theory, with no fancy features to emphasize the simplicity of the approach. This is building upon the minimal implementations of Kovács' [elaboration zoo](https://github.com/AndrasKovacs/elaboration-zoo).
 
 The files in `src/` form a more advanced and complete implementation. Notably, we add datatypes and record types to the type theory. The file architecture is the following:
 
@@ -38,7 +37,7 @@ Once you have built the project as described above, you may execute it as follow
 cabal exec implem-fuss-free --
 ```
 
-You should then see the following usage information: 
+You should then see the following usage information:
 
 ```
 usage: implem-fuss-free <mode> <filepath>
